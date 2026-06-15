@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Removed aggressive ad scripts for better professionalism and UX -->
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, user-scalable=yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="theme-color" content="#0a0a14"/>
+  <meta name="description" content="Premium live TV streaming platform with high-quality channels. Watch news, sports, movies, and entertainment anytime."/>
+  <meta name="keywords" content="iptv, live tv, streaming, ridoyiptv, free iptv"/>
+  <title>RidoyIPTV - Premium Live TV Streaming</title>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.4.12/hls.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  
+  <style>
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+    :root{
+      --bg:#0a0a14;--sb:#11111f;--card:#1a1a2e;--cardh:#24243d;
+      --acc:#00b4d8;--acc2:#0077b6;--glow:rgba(0,180,216,.35);
+      --txt:#f0f0fa;--dim:#8a8aa8;--bdr:rgba(255,255,255,.08);
+      --sw:340px;
+    }
+    html,body{height:100%;overflow:auto;background:var(--bg);color:var(--txt);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;-webkit-overflow-scrolling:touch}
+    ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--cardh);border-radius:6px}
+
+    /* ── SPLASH ── */
+    #splash{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;z-index:9999;transition:opacity .6s,visibility .6s}
+    #splash.gone{opacity:0;visibility:hidden;pointer-events:none}
+    .sp-logo{font-family:'Barlow',sans-serif;font-size:clamp(38px,7.5vw,72px);font-weight:900;letter-spacing:-2.5px;color:var(--txt)}
+    .sp-logo b{color:var(--acc)}
+    .sp-bar{width:min(260px,70vw);height:4px;background:var(--card);border-radius:4px;overflow:hidden}
+    .sp-bar::after{content:'';display:block;height:100%;width:60%;background:linear-gradient(90deg,transparent,var(--acc),transparent);animation:bar 1.3s ease-in-out infinite}
+    @keyframes bar{from{transform:translateX(-120%)}to{transform:translateX(300%)}}
+    #sp-txt{font-size:14px;color:var(--dim);text-align:center;max-width:340px;line-height:1.6}
+
+    /* ── APP SHELL ── */
+    #app{display:flex;height:100vh;opacity:0;transition:opacity .5s}
+    #app.show{opacity:1}
+
+    /* ── SIDEBAR ── */
+    #sidebar{
+      width:var(--sw);min-width:var(--sw);background:var(--sb);
+      border-right:1px solid var(--bdr);display:flex;flex-direction:column;
+      position:relative;z-index:20;
+      box-shadow:4px 0 24px rgba(0,0,0,.35);
+      transition:transform .3s cubic-bezier(.4,0,.2,1),box-shadow .3s;
+    }
+    .tv-mode #sidebar{position:absolute;left:0;top:0;bottom:0;z-index:100;transform:translateX(-100%)}
+    .tv-mode.sb-open #sidebar{transform:translateX(0);box-shadow:8px 0 80px rgba(0,0,0,.95)}
+
+    /* Brand bar */
+    .s-top{display:flex;align-items:center;gap:12px;padding:18px 16px 14px;border-bottom:1px solid var(--bdr);flex-shrink:0;background:var(--sb)}
+    .s-icon{width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,var(--acc),var(--acc2));display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;box-shadow:0 4px 12px rgba(0,180,216,.3)}
+    .s-name{font-family:'Barlow',sans-serif;font-size:22px;font-weight:900;letter-spacing:-.6px}
+    .s-name b{color:var(--acc)}
+    .s-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+    .s-btn{background:var(--card);border:1px solid var(--bdr);border-radius:8px;padding:6px 11px;font-size:13.5px;cursor:pointer;color:var(--dim);font-family:'Inter',sans-serif;transition:all .2s;outline:none;white-space:nowrap}
+    .s-btn:hover{background:var(--cardh);color:var(--txt);transform:translateY(-1px)}
+    #ch-count{background:var(--card);border-radius:9999px;padding:3px 11px;font-size:12px;color:var(--dim);flex-shrink:0}
+
+    /* Update info bar */
+    .s-update{display:flex;align-items:center;gap:9px;padding:8px 16px;background:rgba(0,180,216,.08);border-bottom:1px solid var(--bdr);font-size:12px;color:var(--dim);flex-shrink:0}
+    .upd-dot{width:7px;height:7px;border-radius:50%;background:var(--acc);flex-shrink:0}
+    .upd-dot.spin{animation:spin .9s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    #upd-label{flex:1}
+    #next-refresh{color:var(--acc);font-size:11px}
+
+    /* Search */
+    .s-search{padding:12px 16px;border-bottom:1px solid var(--bdr);flex-shrink:0}
+    #search{width:100%;background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:10px 12px 10px 38px;color:var(--txt);font-size:14px;font-family:'Inter',sans-serif;transition:all .2s;outline:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a8aa8' stroke-width='2.5' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:14px center}
+    #search::placeholder{color:var(--dim)}
+    #search:focus{border-color:var(--acc);box-shadow:0 0 0 4px var(--glow)}
+
+    /* Cats */
+    #cats{display:flex;gap:8px;padding:10px 16px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--bdr);flex-shrink:0}
+    #cats::-webkit-scrollbar{display:none}
+    .cat{flex-shrink:0;padding:6px 14px;border-radius:9999px;background:var(--card);border:1px solid var(--bdr);color:var(--dim);font-size:12.5px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;transition:all .2s ease;outline:none}
+    .cat:hover,.cat.on{background:var(--acc);border-color:var(--acc);color:#000;box-shadow:0 2px 8px rgba(0,180,216,.3)}
+    .cat:focus{outline:2px solid var(--acc);outline-offset:3px}
+
+    /* Channel list */
+    #chlist{flex:1;overflow-y:auto;padding:6px 0}
+    .chi{display:flex;align-items:center;gap:12px;padding:10px 16px;cursor:pointer;border-left:3px solid transparent;transition:all .2s ease;outline:none;border-radius:0 8px 8px 0}
+    .chi:hover,.chi:focus{background:var(--cardh)}
+    .chi.on{background:var(--card);border-left-color:var(--acc)}
+    .chi.on .ch-n{color:var(--acc)}
+    .chi:focus{border-left-color:var(--acc)}
+    .chi-logo{width:48px;height:48px;border-radius:8px;background:var(--card);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:18px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+    .chi-logo img{width:100%;height:100%;object-fit:contain}
+    .chi-txt{flex:1;min-width:0}
+    .ch-n{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .ch-g{font-size:11.5px;color:var(--dim);margin-top:1px}
+    .ch-num{font-size:12px;color:var(--dim);flex-shrink:0;font-variant-numeric:tabular-nums}
+    .chi{animation:fadeUp .2s ease both}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+    /* ── PLAYER ── */
+    #player{flex:1;position:relative;background:#000;overflow:hidden;display:flex;align-items:center;justify-content:center}
+    #vid{width:100%;height:100%;object-fit:contain;background:#000;display:block}
+
+    /* Welcome */
+    #welcome{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:radial-gradient(ellipse at 50% 50%,#1a1a2e 0%,#0a0a14 75%)}
+    #welcome.hide{display:none}
+    .wlc-tv{font-size:clamp(68px,11vw,110px);filter:drop-shadow(0 0 60px rgba(0,180,216,.6));animation:float 3.5s ease-in-out infinite}
+    @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+    .wlc-h{font-family:'Barlow',sans-serif;font-size:clamp(20px,3.5vw,32px);font-weight:900;letter-spacing:-1px}
+    .wlc-s{color:var(--dim);font-size:clamp(13.5px,2vw,16px);max-width:380px;text-align:center}
+    .hints{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;margin-top:16px}
+    .hint{background:var(--card);border:1px solid var(--bdr);border-radius:8px;padding:7px 13px;font-size:12px;color:var(--dim)}
+
+    /* Overlays */
+    .lay{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:5}
+    .lay.vis{display:flex}
+    #lay-load{background:rgba(0,0,0,.75)}
+    .spinner{width:52px;height:52px;border-radius:50%;border:5px solid rgba(255,255,255,.15);border-top-color:var(--acc);animation:spin .75s linear infinite}
+    .lay-n{font-size:15px;color:var(--dim)}
+    #lay-err{background:rgba(0,0,0,.9)}
+    .err-ico{font-size:52px}
+    .err-h{font-size:22px;font-weight:700}
+    .err-s{color:var(--dim);font-size:14px;text-align:center;max-width:380px;line-height:1.55}
+    .err-r{margin-top:10px;background:var(--acc);color:#000;border:none;border-radius:8px;padding:10px 26px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s}
+    .err-r:hover{background:#4dd0e1;transform:scale(1.03)}
+
+    /* OSD */
+    #osd{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.92);border:3px solid var(--acc);border-radius:16px;padding:22px 42px;text-align:center;display:none;backdrop-filter:blur(16px);z-index:10;box-shadow:0 10px 40px rgba(0,0,0,.7)}
+    #osd.vis{display:block}
+    .osd-n{font-family:'Barlow',sans-serif;font-size:72px;font-weight:900;color:var(--acc);line-height:1}
+    .osd-l{font-size:12px;color:var(--dim);margin-top:6px}
+
+    /* Controls */
+    #ctrl{position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;background:linear-gradient(to bottom,rgba(0,0,0,.85) 0%,transparent 30%,transparent 70%,rgba(0,0,0,.9) 100%);opacity:0;transition:opacity .4s;z-index:4}
+    #ctrl.vis{opacity:1;pointer-events:all}
+    .c-top{display:flex;align-items:center;gap:14px;padding:20px 24px}
+    #clg{width:54px;height:54px;border-radius:10px;background:rgba(255,255,255,.1);object-fit:contain;padding:3px;display:none}
+    .c-info{flex:1;min-width:0}
+    .c-name{font-family:'Barlow',sans-serif;font-size:clamp(17px,2.8vw,24px);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .c-grp{font-size:13px;color:rgba(255,255,255,.6);margin-top:3px}
+    .live-t{display:flex;align-items:center;gap:6px;color:#ff5252;font-size:13px;font-weight:700;flex-shrink:0}
+    .l-dot{width:8px;height:8px;background:#ff5252;border-radius:50%;animation:blink 1.1s ease infinite}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+    .c-bot{padding:16px 24px 22px;display:flex;flex-direction:column;gap:12px}
+    .c-row{display:flex;align-items:center;gap:10px}
+    .cb{background:rgba(255,255,255,.18);border:none;border-radius:50%;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;font-size:17px;transition:all .2s;backdrop-filter:blur(10px);outline:none;flex-shrink:0}
+    .cb:hover,.cb:focus{background:rgba(255,255,255,.4);transform:scale(1.1)}
+    .cb.big{width:56px;height:56px;font-size:22px;background:var(--acc);color:#000}
+    .cb.big:hover{background:#4dd0e1}
+    .vol-w{display:flex;align-items:center;gap:10px;margin-left:auto}
+    #vol-sl{-webkit-appearance:none;appearance:none;width:100px;height:5px;border-radius:3px;outline:none;cursor:pointer;background:rgba(255,255,255,.25)}
+    #vol-sl::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;background:#fff;border-radius:50%;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+
+    /* TV toggle */
+    #tv-btn{position:absolute;top:18px;left:18px;z-index:30;background:rgba(0,0,0,.7);border:1px solid var(--bdr);border-radius:9px;padding:9px 14px;color:var(--txt);cursor:pointer;font-size:13.5px;font-weight:600;backdrop-filter:blur(12px);display:none;align-items:center;gap:7px;transition:all .2s;outline:none}
+    #tv-btn:hover{background:rgba(0,180,216,.25)}
+    .tv-mode #tv-btn{display:flex}
+
+    /* Toast */
+    #toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--card);border:1px solid var(--bdr);border-radius:12px;padding:12px 24px;font-size:14px;color:var(--txt);white-space:nowrap;opacity:0;transition:all .4s;z-index:9998;pointer-events:none;box-shadow:0 12px 40px rgba(0,0,0,.7)}
+    #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+    /* ── MOBILE & TABLET ── */
+    @media(max-width:768px){
+      html,body{overflow:auto!important;height:auto!important;}
+      #app{display:block!important;height:100vh!important;}
+      #player{position:fixed!important;inset:0!important;width:100%!important;height:100vh!important;z-index:1;}
+      #sidebar{
+        position:fixed!important;left:0;top:0;width:88%!important;max-width:340px;height:100vh!important;overflow-y:auto!important;
+        transform:translateX(-100%);z-index:9999;transition:transform .35s cubic-bezier(0.32,0.72,0,1);
+      }
+      .sb-open #sidebar{transform:translateX(0)!important;}
+      #tv-btn{display:flex!important;position:fixed;top:14px;left:14px;z-index:10000;}
+      #cats{overflow-x:auto!important;}
+      .hints{display:none;}
+      .c-top{padding:16px 18px;}
+      .c-bot{padding:14px 18px;}
+    }
+
+    /* ── LARGE SCREENS ── */
+    @media(min-width:1920px){
+      :root{--sw:390px}
+      .ch-n{font-size:15.5px}
+      .cat{font-size:13px}
+    }
+
+    /* Extra small phones */
+    @media (max-width: 480px) {
+      :root { --sw: 280px; }
+      .chi-logo { width: 42px; height: 42px; }
+      .s-name{font-size:19px}
+    }
+  </style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="sp-logo">📡 <b>Ridoy</b>IPTV</div>
+  <div class="sp-bar"></div>
+  <div id="sp-txt">Loading premium channel list…</div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- APP -->
+<div id="app">
+
+  <!-- TV overlay button -->
+  <button id="tv-btn" onclick="toggleSB()" title="Toggle Channel List" aria-label="Open channel list">☰ Channels</button>
+
+  <!-- ── SIDEBAR ── -->
+  <aside id="sidebar" role="complementary" aria-label="Channel navigation">
+
+    <div class="s-top">
+      <div class="s-icon">📡</div>
+      <div class="s-name"><b>Ridoy</b>IPTV</div>
+      <div class="s-actions">
+        <button class="s-btn" onclick="manualRefresh()" title="Refresh playlist" aria-label="Refresh channels">🔄 Refresh</button>
+        <button class="s-btn" id="tv-mode-btn" onclick="toggleTVMode()" title="TV Mode">📺 TV</button>
+      </div>
+      <div id="ch-count">…</div>
+    </div>
+
+    <div class="s-update">
+      <div class="upd-dot" id="upd-dot"></div>
+      <span id="upd-label">Checking playlist…</span>
+      <span id="next-refresh"></span>
+    </div>
+
+    <div class="s-search">
+      <input type="text" id="search" placeholder="Search channels or categories…" autocomplete="off" spellcheck="false" aria-label="Search channels"/>
+    </div>
+
+    <div id="cats"></div>
+    <div id="chlist" role="list"></div>
+
+  </aside>
+
+  <!-- ── PLAYER ── -->
+  <main id="player" role="main">
+
+    <video id="vid" playsinline preload="none" controls aria-label="Video player"></video>
+
+    <!-- Welcome -->
+    <div id="welcome">
+      <div class="wlc-tv">📺</div>
+      <div class="wlc-h">Welcome to RidoyIPTV</div>
+      <div class="wlc-s">High-quality live television from around the world.<br>Select a channel to begin streaming.</div>
+      <div class="hints">
+        <div class="hint">Click any channel</div>
+        <div class="hint"><kbd>↑ ↓</kbd> Navigate</div>
+        <div class="hint"><kbd>Enter</kbd> Play</div>
+        <div class="hint"><kbd>F</kbd> Fullscreen</div>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="lay-load" class="lay">
+      <div class="spinner"></div>
+      <div class="lay-n" id="lay-n">Connecting to stream…</div>
+    </div>
+
+    <!-- Error -->
+    <div id="lay-err" class="lay">
+      <div class="err-ico">⚠️</div>
+      <div class="err-h">Stream Unavailable</div>
+      <div class="err-s" id="err-s">Please try again or select another channel.</div>
+      <button class="err-r" onclick="retry()">🔄 Retry Stream</button>
+    </div>
+
+    <!-- OSD -->
+    <div id="osd">
+      <div class="osd-n" id="osd-n">—</div>
+      <div class="osd-l">Channel Number</div>
+    </div>
+
+    <!-- Controls -->
+    <div id="ctrl">
+      <div class="c-top">
+        <img id="clg" src="" alt="Channel logo" onerror="this.style.display='none'"/>
+        <div class="c-info">
+          <div class="c-name" id="c-name">—</div>
+          <div class="c-grp" id="c-grp">—</div>
+        </div>
+        <div class="live-t"><div class="l-dot"></div>LIVE</div>
+      </div>
+      <div class="c-bot">
+        <div class="c-row">
+          <button class="cb" onclick="prevCh()" title="Previous Channel" aria-label="Previous">⏮</button>
+          <button class="cb big" id="pp" onclick="togglePP()" title="Play/Pause">⏸</button>
+          <button class="cb" onclick="nextCh()" title="Next Channel" aria-label="Next">⏭</button>
+          <div class="vol-w">
+            <button class="cb" id="mb" onclick="toggleMute()" title="Mute">🔊</button>
+            <input type="range" id="vol-sl" min="0" max="1" step="0.05" value="1" oninput="setVol(this.value)" aria-label="Volume slider"/>
+          </div>
+          <button class="cb" onclick="toggleFS()" title="Fullscreen" aria-label="Toggle fullscreen">⛶</button>
+          <button class="cb" onclick="toggleSB()" title="Channels">☰</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// RidoyIPTV — Professional Edition
+const M3U_URL   = 'https://mahdiridoy.github.io/Tv/ridoyiptv.m3u';
+const REFRESH_H = 1;                           // hours between auto-refresh
+const REFRESH_MS= REFRESH_H * 3600 * 1000;
+const K_CHNLS   = 'ridoy_channels';
+const K_TIME    = 'ridoy_fetch_time';
+
+const PROXIES = [
+  u => u,
+  u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+];
+
+let ALL = [], FIL = [], CAT = 'All', CUR = -1;
+let hls = null, ctrlTmr = null, osdTmr = null, osdStr = '', tvMode = false, refreshTimer = null;
+
+const $ = id => document.getElementById(id);
+const splash = $('splash'), app = $('app'), vid = $('vid'), search = $('search');
+const cats = $('cats'), chlist = $('chlist'), welcome = $('welcome');
+const layLoad = $('lay-load'), layErr = $('lay-err'), ctrl = $('ctrl');
+const osd = $('osd'), player = $('player');
+
+async function init() {
+  detectTV();
+  const cached = loadCache();
+  if (cached && cached.channels.length) {
+    ALL = cached.channels;
+    $('ch-count').textContent = ALL.length + ' channels';
+    buildCats();
+    applyFilter();
+    setSplash('Loaded ' + ALL.length + ' channels from cache');
+    setTimeout(() => {
+      splash.classList.add('gone');
+      app.classList.add('show');
+      const last = parseInt(localStorage.getItem('ridoy_last') ?? '-1');
+      if (last >= 0 && last < ALL.length) playIdx(last);
+    }, 300);
+    const age = Date.now() - cached.time;
+    updateUpdLabel(cached.time);
+    if (age > REFRESH_MS) setTimeout(backgroundRefresh, 1500);
+    else scheduleRefresh(REFRESH_MS - age);
+    return;
+  }
+  setSplash('Fetching latest channels...');
+  await doFetch(false);
+}
+
+async function doFetch(silent) {
+  let raw = null;
+  for (let proxy of PROXIES) {
+    try {
+      if (!silent) setSplash('Connecting...');
+      const res = await fetch(proxy(M3U_URL), {cache: 'no-cache'});
+      if (!res.ok) continue;
+      const t = await res.text();
+      if (t.includes('#EXTINF')) { raw = t; break; }
+    } catch(e) {}
+  }
+  if (!raw) {
+    if (!silent) setSplash('Failed to load playlist. Check connection.');
+    else toast('Refresh failed — using cache');
+    return false;
+  }
+  const channels = parseM3U(raw);
+  if (!channels.length) return false;
+
+  ALL = channels;
+  saveCache(channels);
+
+  if (!silent) {
+    $('ch-count').textContent = ALL.length + ' channels';
+    buildCats();
+    applyFilter();
+    setSplash('Ready — ' + ALL.length + ' channels');
+    setTimeout(() => {
+      splash.classList.add('gone');
+      app.classList.add('show');
+      const last = parseInt(localStorage.getItem('ridoy_last') ?? '-1');
+      if (last >= 0) playIdx(last);
+    }, 400);
+  } else {
+    $('ch-count').textContent = ALL.length + ' channels';
+    buildCats();
+    applyFilter();
+    toast('Playlist updated successfully');
+  }
+  updateUpdLabel(Date.now());
+  scheduleRefresh(REFRESH_MS);
+  return true;
+}
+
+function parseM3U(txt) {
+  const lines = txt.split(/\r?\n/);
+  const out = []; let m = null;
+  for (let raw of lines) {
+    const l = raw.trim();
+    if (!l) continue;
+    if (l.startsWith('#EXTINF:')) {
+      m = {name:'', logo:'', group:'General', url:''};
+      const logo = l.match(/tvg-logo="([^"]*)"/);
+      const grp = l.match(/group-title="([^"]*)"/);
+      const tname = l.match(/tvg-name="([^"]*)"/);
+      if (logo?.[1]) m.logo = logo[1].trim();
+      if (grp?.[1]) m.group = grp[1].trim();
+      const ci = l.lastIndexOf(',');
+      m.name = (ci !== -1 ? l.slice(ci+1).trim() : '') || tname?.[1] || 'Unknown';
+    } else if (l && !l.startsWith('#') && m) {
+      m.url = l.trim();
+      if (m.url) out.push({...m, _i: out.length});
+      m = null;
+    }
+  }
+  return out;
+}
+
+function saveCache(ch) {
+  try {
+    localStorage.setItem(K_CHNLS, JSON.stringify(ch));
+    localStorage.setItem(K_TIME, Date.now().toString());
+  } catch(e) {}
+}
+function loadCache() {
+  try {
+    const ch = localStorage.getItem(K_CHNLS);
+    const t = localStorage.getItem(K_TIME);
+    if (ch && t) return {channels: JSON.parse(ch), time: parseInt(t)};
+  } catch(e) {}
+  return null;
+}
+
+function scheduleRefresh(delay) {
+  clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(backgroundRefresh, delay);
+  startCountdown(delay);
+}
+async function backgroundRefresh() {
+  setUpdDot(true);
+  await doFetch(true);
+  setUpdDot(false);
+}
+async function manualRefresh() {
+  toast('Refreshing playlist...');
+  setUpdDot(true);
+  await doFetch(true);
+  setUpdDot(false);
+}
+function setUpdDot(spin) {
+  $('upd-dot').className = 'upd-dot' + (spin ? ' spin' : '');
+}
+function updateUpdLabel(ts) {
+  const ago = Math.round((Date.now() - ts) / 60000);
+  $('upd-label').textContent = ago < 2 ? 'Just updated' : `Updated ${ago} min ago`;
+}
+function startCountdown(ms) {
+  clearInterval(window._cdInt);
+  const end = Date.now() + ms;
+  window._cdInt = setInterval(() => {
+    const rem = Math.max(0, end - Date.now());
+    const h = Math.floor(rem/3600000), m = Math.floor((rem%3600000)/60000);
+    $('next-refresh').textContent = `Next refresh: ${h>0 ? h+'h ' : ''}${m}m`;
+  }, 30000);
+}
+
+function buildCats() {
+  const gs = ['All', ...new Set(ALL.map(c=>c.group).filter(Boolean).sort())];
+  cats.innerHTML = gs.map(g => 
+    `<button class="cat ${g==='All'?'on':''}" data-g="${esc(g)}" onclick="setCat('${esc2(g)}')" tabindex="0" role="tab">${esc(g)}</button>`
+  ).join('');
+}
+function setCat(g) {
+  CAT = g;
+  cats.querySelectorAll('.cat').forEach(b => b.classList.toggle('on', b.dataset.g === g));
+  applyFilter();
+}
+function applyFilter() {
+  const q = search.value.toLowerCase().trim();
+  FIL = ALL.filter(c => {
+    const ok = CAT === 'All' || c.group === CAT;
+    const hit = !q || c.name.toLowerCase().includes(q) || c.group.toLowerCase().includes(q);
+    return ok && hit;
+  });
+  renderList();
+}
+
+function renderList() {
+  if (!FIL.length) {
+    chlist.innerHTML = `<div style="padding:32px 20px;text-align:center;color:var(--dim)">No matching channels</div>`;
+    return;
+  }
+  chlist.innerHTML = FIL.map((c, fi) => {
+    const logo = c.logo ? `<div class="chi-logo"><img src="${esc(c.logo)}" alt="${esc(c.name)} logo" loading="lazy" onerror="this.parentElement.textContent='📺'"/></div>` : `<div class="chi-logo">📺</div>`;
+    const on = c._i === CUR ? 'on' : '';
+    return `<div class="chi ${on}" tabindex="0" role="listitem" data-i="${c._i}" onclick="playIdx(${c._i})" onkeydown="chiKey(event,${c._i})">
+      ${logo}
+      <div class="chi-txt"><div class="ch-n">${esc(c.name)}</div><div class="ch-g">${esc(c.group)}</div></div>
+      <div class="ch-num">${fi+1}</div>
+    </div>`;
+  }).join('');
+  if (CUR >= 0) {
+    const el = chlist.querySelector('.on');
+    if (el) el.scrollIntoView({block:'nearest', behavior:'smooth'});
+  }
+}
+
+function playIdx(i) {
+  const ch = ALL[i];
+  if (!ch) return;
+  CUR = i;
+  localStorage.setItem('ridoy_last', i);
+  welcome.classList.add('hide');
+  hideErr(); showLoad(ch.name); renderList();
+
+  $('c-name').textContent = ch.name;
+  $('c-grp').textContent = ch.group;
+  document.title = `${ch.name} — RidoyIPTV`;
+  const lg = $('clg');
+  lg.src = ch.logo || ''; lg.style.display = ch.logo ? '' : 'none';
+  syncVol();
+
+  if (hls) { hls.destroy(); hls = null; }
+  vid.removeAttribute('src'); vid.load();
+
+  const url = ch.url;
+  if (Hls.isSupported()) {
+    hls = new Hls({enableWorker:true, lowLatencyMode:true, backBufferLength:25});
+    hls.loadSource(url);
+    hls.attachMedia(vid);
+    hls.on(Hls.Events.MANIFEST_PARSED, () => vid.play().catch(()=>{}));
+    hls.on(Hls.Events.ERROR, (_, d) => {
+      if (d.fatal) {
+        hls.destroy(); hls = null;
+        vid.src = url;
+        vid.play().catch(() => showErr());
+      }
+    });
+  } else {
+    vid.src = url;
+    vid.play().catch(() => showErr());
+  }
+
+  vid.onwaiting = () => showLoad(ch.name);
+  vid.onplaying = () => hideLoad();
+  vid.onerror = () => showErr();
+
+  showCtrl(4500);
+  if (tvMode) app.classList.remove('sb-open');
+}
+
+function retry() { if (CUR >= 0) playIdx(CUR); }
+
+function showLoad(n) { layLoad.classList.add('vis'); if(n) $('lay-n').textContent = n; }
+function hideLoad() { layLoad.classList.remove('vis'); }
+function showErr(m) { layErr.classList.add('vis'); $('err-s').textContent = m || 'Stream unavailable. Try another channel.'; }
+function hideErr() { layErr.classList.remove('vis'); }
+
+function showCtrl(ms=4000) {
+  ctrl.classList.add('vis');
+  clearTimeout(ctrlTmr);
+  ctrlTmr = setTimeout(() => ctrl.classList.remove('vis'), ms);
+}
+player.addEventListener('mousemove', () => { if (CUR >= 0) showCtrl(); });
+vid.addEventListener('click', () => ctrl.classList.contains('vis') ? ctrl.classList.remove('vis') : showCtrl());
+
+function togglePP() {
+  if (vid.paused) vid.play().then(() => updPP(true));
+  else vid.pause(), updPP(false);
+  showCtrl();
+}
+function updPP(p) { $('pp').textContent = p ? '⏸' : '▶'; }
+function toggleMute() { vid.muted = !vid.muted; $('mb').textContent = vid.muted ? '🔇' : '🔊'; }
+function setVol(v) { vid.volume = parseFloat(v); vid.muted = (v == 0); syncVol(); }
+function syncVol() {
+  const sl = $('vol-sl');
+  const v = vid.muted ? 0 : vid.volume;
+  sl.value = v;
+}
+vid.addEventListener('volumechange', syncVol);
+
+function prevCh() {
+  const fi = FIL.findIndex(c=>c._i===CUR);
+  const n = fi <= 0 ? FIL.length-1 : fi-1;
+  if (FIL[n]) playIdx(FIL[n]._i);
+}
+function nextCh() {
+  const fi = FIL.findIndex(c=>c._i===CUR);
+  const n = fi >= FIL.length-1 ? 0 : fi+1;
+  if (FIL[n]) playIdx(FIL[n]._i);
+}
+function toggleFS() {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+  else document.exitFullscreen();
+}
+
+function detectTV() {
+  if (/SmartTV|HbbTV|WebOS|Tizen|SMART-TV|NetCast|googletv|AppleTV|AFTT/i.test(navigator.userAgent)) enableTV();
+}
+function enableTV() { tvMode=true; app.classList.add('tv-mode'); $('tv-mode-btn').textContent='🖥️ Desktop'; }
+function disableTV() { tvMode=false; app.classList.remove('tv-mode','sb-open'); $('tv-mode-btn').textContent='📺 TV'; }
+function toggleTVMode() { tvMode ? disableTV() : enableTV(); }
+function toggleSB() {
+  app.classList.toggle('sb-open');
+  if (app.classList.contains('sb-open')) setTimeout(() => (chlist.querySelector('.on') || chlist.querySelector('.chi'))?.focus(), 350);
+}
+
+function osdType(d) {
+  osdStr += d;
+  $('osd-n').textContent = osdStr.padStart(3,'0');
+  osd.classList.add('vis');
+  clearTimeout(osdTmr);
+  osdTmr = setTimeout(() => {
+    const n = parseInt(osdStr)-1;
+    osd.classList.remove('vis'); osdStr='';
+    if (n >= 0 && n < FIL.length) playIdx(FIL[n]._i);
+  }, 1400);
+}
+
+document.addEventListener('keydown', e => {
+  const inp = e.target.tagName === 'INPUT';
+  if (/^[0-9]$/.test(e.key) && !inp) { e.preventDefault(); osdType(e.key); return; }
+
+  switch(e.key) {
+    case ' ': case 'k': if(!inp) {e.preventDefault(); togglePP();} break;
+    case 'f': case 'F': if(!inp) {e.preventDefault(); toggleFS();} break;
+    case 'm': case 'M': if(!inp) {e.preventDefault(); toggleMute();} break;
+    case 'PageUp': e.preventDefault(); prevCh(); break;
+    case 'PageDown': e.preventDefault(); nextCh(); break;
+    case 'Escape': if(tvMode) toggleSB(); else {search.value=''; applyFilter();} break;
+    case 'ArrowUp': case 'ArrowDown': if(!inp) {e.preventDefault(); arrowNav(e.key==='ArrowUp'?-1:1);} break;
+  }
+});
+
+function arrowNav(dir) {
+  if (!tvMode || app.classList.contains('sb-open')) {
+    const items = [...chlist.querySelectorAll('.chi')];
+    const cur = document.activeElement;
+    let idx = items.indexOf(cur);
+    if (idx === -1) idx = dir > 0 ? 0 : items.length-1;
+    else idx = Math.max(0, Math.min(items.length-1, idx + dir));
+    items[idx].focus();
+  } else dir > 0 ? nextCh() : prevCh();
+}
+
+function chiKey(e, i) {
+  if (e.key === 'Enter' || e.key === ' ') playIdx(i);
+}
+
+let sTmr;
+search.addEventListener('input', () => {clearTimeout(sTmr); sTmr = setTimeout(applyFilter, 180);});
+
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+function setSplash(t) { $('sp-txt').textContent = t; }
+function esc(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function esc2(s) { return String(s||'').replace(/[\\'"]/g, '\\$&'); }
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    const t = parseInt(localStorage.getItem(K_TIME)||'0');
+    if (Date.now() - t > REFRESH_MS) backgroundRefresh();
+  }
+});
+
+init();
+</script>
+</body>
+</html>
