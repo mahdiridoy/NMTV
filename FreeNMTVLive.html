@@ -323,6 +323,14 @@ const PROXIES = [
   u => u,
 ];
 
+// CORS proxies to try for stream URLs
+const STREAM_PROXIES = [
+  u => u,
+  u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  u => `https://thingproxy.freeboard.io/fetch/${u}`,
+];
+
 let ALL = [], FIL = [], CAT = 'All', CUR = -1;
 let hls = null, ctrlTmr = null, osdTmr = null, osdStr = '', tvMode = false, refreshTimer = null;
 
@@ -535,34 +543,38 @@ function playIdx(i) {
   if (hls) { hls.destroy(); hls = null; }
   vid.removeAttribute('src'); vid.load();
 
-  // Upgrade HTTP to HTTPS to avoid mixed-content blocks on mobile
-  const url = ch.url.replace(/^http:\/\//i, 'https://');
-  if (Hls.isSupported() && (url.includes('.m3u8') || url.includes('m3u') || url.includes('stream') || url.includes('live') || url.includes('hls'))) {
-    hls = new Hls({
-      enableWorker: true,
-      lowLatencyMode: true,
-      backBufferLength: 25,
-      maxBufferLength: 30,
-      maxMaxBufferLength: 60,
-      manifestLoadingTimeOut: 10000,
-      manifestLoadingMaxRetry: 3,
-      levelLoadingTimeOut: 10000,
-    });
-    hls.loadSource(url);
-    hls.attachMedia(vid);
-    hls.on(Hls.Events.MANIFEST_PARSED, () => vid.play().catch(()=>{}));
-    hls.on(Hls.Events.ERROR, (_, d) => {
-      if (d.fatal) {
-        hls.destroy(); hls = null;
-        // Fallback: try native video element
-        vid.src = url;
-        vid.play().catch(() => showErr());
+  // Upgrade HTTP->HTTPS to avoid mixed-content blocks on mobile
+  const rawUrl = ch.url.replace(/^http:\/\//i, 'https://');
+  let streamProxyIdx = 0;
+
+  function tryStream(url) {
+    if (hls) { hls.destroy(); hls = null; }
+    function nextProxy() {
+      streamProxyIdx++;
+      if (streamProxyIdx < STREAM_PROXIES.length) {
+        tryStream(STREAM_PROXIES[streamProxyIdx](rawUrl));
+      } else {
+        showErr();
       }
-    });
-  } else {
-    vid.src = url;
-    vid.play().catch(() => showErr());
+    }
+    if (Hls.isSupported()) {
+      hls = new Hls({
+        enableWorker: true, lowLatencyMode: true,
+        backBufferLength: 25, maxBufferLength: 30,
+        manifestLoadingTimeOut: 10000, manifestLoadingMaxRetry: 1,
+        levelLoadingTimeOut: 10000,
+      });
+      hls.loadSource(url);
+      hls.attachMedia(vid);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => vid.play().catch(()=>{}));
+      hls.on(Hls.Events.ERROR, (_, d) => { if (d.fatal) { hls.destroy(); hls = null; nextProxy(); } });
+    } else {
+      vid.src = url;
+      vid.play().catch(() => nextProxy());
+    }
   }
+
+  tryStream(STREAM_PROXIES[streamProxyIdx](rawUrl));
 
   vid.onwaiting = () => showLoad(ch.name);
   vid.onplaying = () => hideLoad();
