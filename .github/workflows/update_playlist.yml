@@ -2,11 +2,11 @@ name: Update M3U Playlist
 
 on:
   schedule:
-    - cron: "0 * * * *"   # every 6 hours
-  workflow_dispatch: {}      # allows manual trigger from Actions tab
+    - cron: "0 */6 * * *"   # every 6 hours
+  workflow_dispatch: {}      # manual trigger from Actions tab
   push:
     paths:
-      - "sources.txt"        # also run whenever you edit your link list
+      - "sources.txt"        # re-run whenever you edit the link list
 
 permissions:
   contents: write
@@ -23,17 +23,19 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
-        run: pip install --upgrade yt-dlp
+      - name: Install / upgrade yt-dlp
+        # Always grab the latest release so YouTube bot-check fixes are included
+        run: |
+          pip install --upgrade pip
+          pip install --upgrade yt-dlp
 
       - name: Run converter
         run: python extract_stream.py
 
       - name: Commit updated playlist
         run: |
-          git config --local user.name "github-actions[bot]"
+          git config --local user.name  "github-actions[bot]"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git add playlist.m3u
           git diff --staged --quiet || git commit -m "Auto-update playlist.m3u [skip ci]"
           git push
-          
